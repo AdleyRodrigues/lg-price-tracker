@@ -15,3 +15,22 @@ function lerEnv(chave: string, fallback: string): string {
 
 export const WEBHOOK_URL = lerEnv('WEBHOOK_URL', WEBHOOK_FALLBACK);
 export const USER_ID = lerEnv('USER_ID', USER_ID_FALLBACK);
+
+/** Webhook exclusivo de supermercado. Sem fallback para o canal de ar-condicionado. */
+export const DISCORD_SUPERMERCADO_WEBHOOK_URL = process.env.DISCORD_SUPERMERCADO_WEBHOOK_URL;
+
+function normalizarWebhook(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
+export function exigirWebhookSupermercado(): string {
+  const url = DISCORD_SUPERMERCADO_WEBHOOK_URL?.trim();
+  if (!url) {
+    throw new Error('DISCORD_SUPERMERCADO_WEBHOOK_URL não configurado');
+  }
+  const ac = process.env.WEBHOOK_URL?.trim() || WEBHOOK_FALLBACK;
+  if (normalizarWebhook(url) === normalizarWebhook(ac)) {
+    throw new Error('DISCORD_SUPERMERCADO_WEBHOOK_URL não configurado');
+  }
+  return url;
+}

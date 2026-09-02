@@ -1,0 +1,44 @@
+name: Monitor de Ofertas - Supermercado
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restaurar cache de alertas
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: supermercado-cache-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            supermercado-cache-${{ runner.os }}-
+            supermercado-cache-
+
+      - name: Garantir pasta data
+        run: mkdir -p data
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run supermarket tracker
+        run: pnpm track:mercado
+        env:
+          DISCORD_SUPERMERCADO_WEBHOOK_URL: ${{ secrets.DISCORD_SUPERMERCADO_WEBHOOK_URL }}

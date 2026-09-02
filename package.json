@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "ts-node src/tracker.ts",
+    "track:mercado": "ts-node src/tracker-supermercado.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
