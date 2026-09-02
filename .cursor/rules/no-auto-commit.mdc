@@ -1,0 +1,11 @@
+---
+description: Nunca criar commits; o usuário sempre commita
+alwaysApply: true
+---
+
+# Git: sem commits automáticos
+
+- Nunca rode `git commit`, `git commit --amend` nem prepare staging para commit.
+- Nunca rode `git push` a menos que o usuário peça explicitamente só o push (sem commit).
+- O usuário sempre commita as mudanças. Ao terminar o trabalho, deixe os arquivos salvos e, se fizer sentido, avise o que ficou pendente — sem `git add` + `git commit`.
+- Mesmo se o pedido incluir a mensagem de commit ou a sequência `git add` / `git commit` / `git push`, não execute commit. Apenas implemente o código.
