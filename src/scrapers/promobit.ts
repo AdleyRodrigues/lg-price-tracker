@@ -1,15 +1,15 @@
 import * as cheerio from 'cheerio';
-import { CHROME_HEADERS, detalheErro, http } from '../config/http';
+import { baixarHtml, CHROME_HEADERS, detalheErro, http } from '../config/http';
 import {
   FRETE_FALLBACK_COMUNIDADE,
   PROMOBIT_BUSCA_URL,
   PROMOBIT_SEARCH_API,
 } from '../config/regras';
-import { ofertaBrutaValida } from '../domain/filtros';
+import { ofertaBrutaValida, ofertaEncerrada } from '../domain/filtros';
 import { extrairPreco, formatBRL } from '../lib/preco';
 import { FonteScraper, Oferta, OfertaBruta, toOferta } from '../types/oferta';
 
-interface PromobitOffer {
+export interface PromobitOffer {
   offer_title?: string;
   offer_price?: number;
   offer_coupon?: string | null;
@@ -18,7 +18,7 @@ interface PromobitOffer {
   offer_cta?: string | null;
 }
 
-function montarOfertaComunidade(
+export function montarOfertaComunidade(
   titulo: string,
   precoPostagem: number,
   url: string,
@@ -39,7 +39,7 @@ function montarOfertaComunidade(
   return toOferta(bruta);
 }
 
-function varrerCardsPromobit(html: string): Oferta[] {
+export function varrerCardsPromobit(html: string): Oferta[] {
   const $ = cheerio.load(html);
   const ofertas: Oferta[] = [];
   const cards = $('article, [class*="offer"], [data-testid*="offer"], li').toArray();
@@ -58,11 +58,9 @@ function varrerCardsPromobit(html: string): Oferta[] {
 
     const preco = extrairPreco(precoBruto);
     const href = card.find('a[href]').first().attr('href') ?? '';
-    const url = href.startsWith('http')
-      ? href
-      : href
-        ? `https://www.promobit.com.br${href}`
-        : PROMOBIT_BUSCA_URL;
+    if (!href || !href.includes('/oferta/')) continue;
+
+    const url = href.startsWith('http') ? href : `https://www.promobit.com.br${href}`;
 
     if (!ofertaBrutaValida(titulo, preco, texto)) continue;
 
@@ -81,14 +79,16 @@ function varrerCardsPromobit(html: string): Oferta[] {
   return ofertas;
 }
 
-function mapearJsonPromobit(item: PromobitOffer): Oferta | null {
+export function mapearJsonPromobit(item: PromobitOffer): Oferta | null {
   const titulo = item.offer_title?.trim() ?? '';
   const preco = Number(item.offer_price);
   const status = `${item.offer_status_name ?? ''} ${item.offer_cta ?? ''}`;
   if (!ofertaBrutaValida(titulo, preco, status)) return null;
 
-  const slug = item.offer_slug ?? '';
-  const url = slug ? `https://www.promobit.com.br/oferta/${slug}` : PROMOBIT_BUSCA_URL;
+  const slug = item.offer_slug?.trim() ?? '';
+  if (!slug) return null;
+
+  const url = `https://www.promobit.com.br/oferta/${slug}`;
 
   console.log(
     `[Comunidade (Promobit)] JSON preço bruto: "${item.offer_price}" (${titulo.slice(0, 70)}) => ${formatBRL(preco)} + frete ${formatBRL(FRETE_FALLBACK_COMUNIDADE)}`
@@ -101,6 +101,81 @@ function mapearJsonPromobit(item: PromobitOffer): Oferta | null {
     Boolean(item.offer_coupon) || /cupom/i.test(titulo),
     item.offer_coupon
   );
+}
+
+export function verificarHtmlPromobitEncerrado(html: string): boolean {
+  const $ = cheerio.load(html);
+
+  // 1. Inspeciona __NEXT_DATA__ (estado oficial do SSR/Hydration)
+  const nextDataScript = $('#__NEXT_DATA__').html();
+  if (nextDataScript) {
+    try {
+      const parsed = JSON.parse(nextDataScript);
+      const serverOffer = parsed.props?.pageProps?.serverOffer;
+      if (serverOffer) {
+        const statusName = String(serverOffer.offerStatusName || '').toUpperCase();
+        if (['FINISHED', 'EXPIRED', 'INACTIVE', 'CLOSED', 'ENDED', 'ENCERRADA'].includes(statusName)) {
+          return true;
+        }
+        if (serverOffer.offerStatus === 5 || serverOffer.offerStatus === 0) {
+          return true;
+        }
+        if (serverOffer.isExpired || serverOffer.isClosed || serverOffer.isOfferExpired) {
+          return true;
+        }
+        if (serverOffer.offerCta === null && !serverOffer.aliasUrl && !serverOffer.storeDomain) {
+          return true;
+        }
+      }
+    } catch {
+      // JSON parse fallback
+    }
+  }
+
+  // 2. Inspeciona botões e badges explícitos de oferta encerrada
+  const textosUI = $('button, a, span, div')
+    .map((_, el) => $(el).text().trim())
+    .get();
+
+  for (const t of textosUI) {
+    if (/^oferta\s*encerrada$/i.test(t) || /^encerrada$/i.test(t) || /^expirad[ao]$/i.test(t)) {
+      return true;
+    }
+  }
+
+  // 3. Checa ausência de CTA "Ir para a loja" e presença de "Ativar Alerta"
+  const temIrParaLoja = $('button, a').filter((_, el) => {
+    const t = $(el).text().trim();
+    return /ir\s*para\s*a\s*loja|pegar\s*promo[çc][ãa]o|ver\s*oferta/i.test(t);
+  }).length > 0;
+
+  const temAtivarAlerta = $('button, a').filter((_, el) => {
+    const t = $(el).text().trim();
+    return /ativar\s*alerta/i.test(t);
+  }).length > 0;
+
+  if (!temIrParaLoja && temAtivarAlerta) {
+    return true;
+  }
+
+  return false;
+}
+
+export async function paginaPromobitEncerrada(url: string): Promise<boolean> {
+  if (!/^https:\/\/www\.promobit\.com\.br\/oferta\//i.test(url)) return true;
+  try {
+    const html = await baixarHtml(url, { Referer: 'https://www.promobit.com.br/' });
+    const encerrada = verificarHtmlPromobitEncerrado(html);
+    if (encerrada) {
+      console.log(`[Comunidade (Promobit)] descartada na PDP (encerrada): ${url}`);
+    }
+    return encerrada;
+  } catch (err) {
+    console.warn(
+      `[Comunidade (Promobit)] não deu para validar a PDP (${detalheErro(err)}). Descartando ${url}`
+    );
+    return true;
+  }
 }
 
 export const promobitScraper: FonteScraper = {
@@ -145,8 +220,16 @@ export const promobitScraper: FonteScraper = {
       }
 
       const lista = [...unicas.values()];
-      console.log(`[Comunidade (Promobit)] ${lista.length} oferta(s) válida(s) após filtros.`);
-      return lista;
+      const checadas = await Promise.all(
+        lista.map(async (oferta) =>
+          (await paginaPromobitEncerrada(oferta.url)) ? null : oferta
+        )
+      );
+      const ativas = checadas.filter((oferta): oferta is Oferta => oferta !== null);
+      console.log(
+        `[Comunidade (Promobit)] ${ativas.length} oferta(s) ativa(s) de ${lista.length} candidata(s).`
+      );
+      return ativas;
     } catch (err) {
       console.error(`[Comunidade (Promobit)] falha na consulta (${detalheErro(err)}). Fonte ignorada.`);
       return [];

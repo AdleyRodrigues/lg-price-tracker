@@ -1,17 +1,19 @@
 import * as cheerio from 'cheerio';
 import { CATALOGO, ItemCatalogo } from '../config/catalogo';
 import { baixarHtml, CHROME_HEADERS, detalheErro, http } from '../config/http';
+import { FRETE_FALLBACK_LG } from '../config/regras';
 import { extrairPreco, formatBRL } from '../lib/preco';
 import { FonteScraper, Oferta, OfertaBruta, toOferta } from '../types/oferta';
 
-interface LgGraphqlProduto {
+export interface LgGraphqlProduto {
   name?: string;
   sku?: string;
+  stock_status?: string;
   cheaper_price?: { amount?: { value?: number } };
   price_range?: { minimum_price?: { final_price?: { value?: number } } };
 }
 
-function extrairSkuLg(html: string): string | null {
+export function extrairSkuLg(html: string): string | null {
   return (
     html.match(/const sku = "([^"]+)"/)?.[1] ??
     html.match(/"sku":\s*`([^`]+)`/)?.[1] ??
@@ -20,7 +22,7 @@ function extrairSkuLg(html: string): string | null {
   );
 }
 
-async function consultarGraphqlLg(sku: string): Promise<LgGraphqlProduto | null> {
+export async function consultarGraphqlLg(sku: string): Promise<LgGraphqlProduto | null> {
   const query = `
     query getProductsBySku($skuList: [String]) {
       products(filter: { sku: { in: $skuList } }) {
@@ -63,7 +65,7 @@ async function consultarGraphqlLg(sku: string): Promise<LgGraphqlProduto | null>
   return data.data?.products?.items?.[0] ?? null;
 }
 
-function parsearPrecoPixNoHtml(html: string): { bruto: string; valor: number } | null {
+export function parsearPrecoPixNoHtml(html: string): { bruto: string; valor: number } | null {
   const $ = cheerio.load(html);
   const candidatos: string[] = [];
 
@@ -83,7 +85,7 @@ function parsearPrecoPixNoHtml(html: string): { bruto: string; valor: number } |
   return { bruto, valor };
 }
 
-async function parsearLg(html: string, item: ItemCatalogo): Promise<OfertaBruta> {
+export async function parsearLg(html: string, item: ItemCatalogo): Promise<OfertaBruta> {
   const sku = extrairSkuLg(html) ?? item.sku ?? null;
   let precoBruto = '';
   let precoAVista = Number.NaN;
@@ -92,6 +94,9 @@ async function parsearLg(html: string, item: ItemCatalogo): Promise<OfertaBruta>
   if (sku) {
     try {
       const produto = await consultarGraphqlLg(sku);
+      if (produto?.stock_status === 'OUT_OF_STOCK') {
+        throw new Error(`Produto com SKU ${sku} esgotado/sem estoque na LG`);
+      }
       const pix = produto?.cheaper_price?.amount?.value;
       const final = produto?.price_range?.minimum_price?.final_price?.value;
       if (typeof pix === 'number' && pix > 0) {
@@ -125,15 +130,16 @@ async function parsearLg(html: string, item: ItemCatalogo): Promise<OfertaBruta>
     `[${item.loja}] preço bruto extraído: "${precoBruto}" (${origem}) => ${formatBRL(precoAVista)}`
   );
 
+  const fallbackFrete = item.freteFallback ?? FRETE_FALLBACK_LG;
   const $ = cheerio.load(html);
   const blocoFrete = $('[class*="delivery"], [class*="shipping"], [class*="frete"]')
     .map((_, el) => $(el).text().replace(/\s+/g, ' ').trim())
     .get()
     .find((t) => /frete|entrega/i.test(t) && /R\$|gr[áa]tis/i.test(t) && t.length < 240);
 
-  let frete = 0;
+  let frete = fallbackFrete;
   if (blocoFrete) {
-    if (/frete\s*gr[áa]tis/i.test(blocoFrete) && !/R\$\s*[\d.]+,\d{2}/.test(blocoFrete)) {
+    if (/frete\s*gr[áa]tis|entrega\s*gr[áa]tis/i.test(blocoFrete) && !/R\$\s*[\d.]+,\d{2}/.test(blocoFrete)) {
       frete = 0;
     } else {
       const valor = blocoFrete.match(/R\$\s*[\d.]+,\d{2}/)?.[0];
@@ -141,7 +147,9 @@ async function parsearLg(html: string, item: ItemCatalogo): Promise<OfertaBruta>
     }
     console.log(`[${item.loja}] frete bruto extraído: "${blocoFrete}" => ${formatBRL(frete)}`);
   } else {
-    console.warn(`[${item.loja}] frete não localizado no HTML da loja oficial. Usando R$ 0,00.`);
+    console.log(
+      `[${item.loja}] frete não localizado no HTML estático da loja oficial. Usando frete padrão Fortaleza: ${formatBRL(fallbackFrete)}.`
+    );
   }
 
   return {
@@ -151,6 +159,7 @@ async function parsearLg(html: string, item: ItemCatalogo): Promise<OfertaBruta>
     frete,
     url: item.url,
     fonteId: 'lg',
+    sku: sku ?? item.sku,
   };
 }
 

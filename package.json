@@ -6,7 +6,7 @@
   "scripts": {
     "start": "ts-node src/tracker.ts",
     "track:mercado": "ts-node src/tracker-supermercado.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -16,12 +16,14 @@
   "dependencies": {
     "axios": "^1.20.0",
     "cheerio": "^1.2.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "playwright": "^1.63.0"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.19.43",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0"
   }
 }
