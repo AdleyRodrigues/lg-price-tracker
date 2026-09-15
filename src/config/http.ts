@@ -19,7 +19,7 @@ export const CHROME_HEADERS = {
 };
 
 export const http: AxiosInstance = axios.create({
-  timeout: 20000,
+  timeout: 10000,
   maxRedirects: 5,
   headers: CHROME_HEADERS,
   validateStatus: (status) => status < 500,
@@ -41,6 +41,8 @@ export async function baixarHtml(
 ): Promise<string> {
   const resposta = await http.get<string>(url, {
     headers: { ...CHROME_HEADERS, ...extraHeaders },
+    timeout: 10000,
+    signal: AbortSignal.timeout(10000),
   });
 
   if (resposta.status === 404 || resposta.status === 410) {

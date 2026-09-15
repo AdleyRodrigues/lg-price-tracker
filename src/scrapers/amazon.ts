@@ -2,9 +2,12 @@ import * as cheerio from 'cheerio';
 import { CATALOGO, ItemCatalogo } from '../config/catalogo';
 import { baixarHtml, detalheErro } from '../config/http';
 import {
+  CEP,
+  FRETE_FALLBACK_AMAZON,
   FRETE_FALLBACK_LEVEROS,
   FRETE_FALLBACK_WEBCONTINENTAL,
 } from '../config/regras';
+import { ofertaBrutaValida } from '../domain/filtros';
 import { extrairPreco, formatBRL } from '../lib/preco';
 import { FonteScraper, Oferta, OfertaBruta, toOferta } from '../types/oferta';
 
@@ -50,7 +53,7 @@ export function freteFallbackAmazon(item: ItemCatalogo, vendedor: string): numbe
   if (chave.includes('webcontinental')) return FRETE_FALLBACK_WEBCONTINENTAL;
   if (chave.includes('leveros')) return FRETE_FALLBACK_LEVEROS;
   if (chave.includes('friopecas')) return FRETE_FALLBACK_LEVEROS;
-  return item.freteFallback ?? FRETE_FALLBACK_LEVEROS;
+  return item.freteFallback ?? FRETE_FALLBACK_AMAZON;
 }
 
 export function parsearAmazon(html: string, item: ItemCatalogo): OfertaBruta {
@@ -198,6 +201,72 @@ export function parsearAmazon(html: string, item: ItemCatalogo): OfertaBruta {
   };
 }
 
+export function parsearBuscaAmazon(html: string, item: ItemCatalogo): Oferta[] {
+  if (/opfcaptcha|amazon-captcha|validateCaptcha|sorry, we just need to make sure you're not a robot/i.test(html)) {
+    throw new Error('Captcha / bloqueio anti-bot da Amazon');
+  }
+
+  const $ = cheerio.load(html);
+  const ofertas: Oferta[] = [];
+  const cards = $('[data-component-type="s-search-result"]').toArray();
+
+  for (const el of cards) {
+    const card = $(el);
+    const asin = card.attr('data-asin')?.trim();
+    const titulo = card.find('h2 a span, h2 span, h2').first().text().replace(/\s+/g, ' ').trim();
+    if (!titulo) continue;
+
+    let precoBruto = card.find('.a-price .a-offscreen').first().text().trim();
+    if (!precoBruto) {
+      const whole = card.find('.a-price-whole').first().text().trim();
+      const fraction = card.find('.a-price-fraction').first().text().trim();
+      if (whole) {
+        precoBruto = `${whole}${fraction ? `,${fraction}` : ''}`;
+      }
+    }
+    if (!precoBruto) continue;
+
+    const precoAVista = extrairPreco(precoBruto);
+    if (!Number.isFinite(precoAVista) || precoAVista <= 0) continue;
+
+    if (!ofertaBrutaValida(titulo, precoAVista)) continue;
+
+    const hrefRel = card.find('h2 a, a.a-link-normal[href*="/dp/"]').first().attr('href') ?? '';
+    let url = hrefRel.startsWith('http')
+      ? hrefRel
+      : (hrefRel ? `https://www.amazon.com.br${hrefRel}` : (asin ? `https://www.amazon.com.br/dp/${asin}` : item.url));
+
+    if (asin) {
+      url = `https://www.amazon.com.br/dp/${asin}`;
+    }
+
+    const textoEntrega = card.find('[aria-label*="entrega"], [aria-label*="frete"], [class*="delivery"]').text().trim();
+    let frete = item.freteFallback ?? FRETE_FALLBACK_AMAZON;
+    if (/gr[áa]tis|prime/i.test(textoEntrega)) {
+      frete = 0;
+    } else {
+      const matchFrete = textoEntrega.match(/R\$\s*[\d.]+,\d{2}/);
+      if (matchFrete) frete = extrairPreco(matchFrete[0]);
+    }
+
+    console.log(`[Amazon (Busca)] ${titulo.slice(0, 60)} => ${formatBRL(precoAVista)} (frete: ${formatBRL(frete)})`);
+
+    const bruta: OfertaBruta = {
+      loja: 'Amazon',
+      titulo,
+      precoAVista,
+      frete,
+      url,
+      fonteId: 'amazon',
+      sku: asin,
+    };
+
+    ofertas.push(toOferta(bruta));
+  }
+
+  return ofertas;
+}
+
 let cachedAmazonCookies: string | null = null;
 let lastCookieTime = 0;
 
@@ -217,6 +286,8 @@ export async function obterCookiesAmazonCep(cep = '60440240', forceFresh = false
       headers: {
         'Cookie': 'i18n-prefs=BRL; lc-acbbr=pt_BR;',
       },
+      timeout: 10000,
+      signal: AbortSignal.timeout(10000),
     });
 
     const rawCookies1 = (r1.headers['set-cookie'] as string[] | undefined) || [];
@@ -246,6 +317,8 @@ export async function obterCookiesAmazonCep(cep = '60440240', forceFresh = false
           'content-type': 'application/json',
           'Referer': 'https://www.amazon.com.br/',
         },
+        timeout: 10000,
+        signal: AbortSignal.timeout(10000),
       }
     );
 
@@ -266,11 +339,16 @@ export async function obterCookiesAmazonCep(cep = '60440240', forceFresh = false
 async function rasparItem(item: ItemCatalogo): Promise<Oferta[]> {
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     try {
-      const cookie = await obterCookiesAmazonCep('60440240', tentativa > 1);
+      const cookie = await obterCookiesAmazonCep(CEP, tentativa > 1);
       const html = await baixarHtml(item.url, {
         Referer: 'https://www.amazon.com.br/',
         Cookie: cookie,
       });
+
+      if (item.url.includes('/s?') || item.url.includes('/s/')) {
+        return parsearBuscaAmazon(html, item);
+      }
+
       return [toOferta(parsearAmazon(html, item))];
     } catch (err) {
       if (tentativa === 1) {

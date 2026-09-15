@@ -2,10 +2,9 @@ import * as cheerio from 'cheerio';
 import { baixarHtml, CHROME_HEADERS, detalheErro, http } from '../config/http';
 import {
   FRETE_FALLBACK_COMUNIDADE,
-  PROMOBIT_BUSCA_URL,
-  PROMOBIT_SEARCH_API,
+  TERMOS_BUSCA,
 } from '../config/regras';
-import { ofertaBrutaValida, ofertaEncerrada } from '../domain/filtros';
+import { ofertaBrutaValida } from '../domain/filtros';
 import { extrairPreco, formatBRL } from '../lib/preco';
 import { FonteScraper, Oferta, OfertaBruta, toOferta } from '../types/oferta';
 
@@ -48,7 +47,7 @@ export function varrerCardsPromobit(html: string): Oferta[] {
     const card = $(el);
     const texto = card.text().replace(/\s+/g, ' ').trim();
     if (texto.length < 20 || texto.length > 800) continue;
-    if (!/lg|dual|inverter|9000|9\.000/i.test(texto)) continue;
+    if (!/notebook|laptop/i.test(texto) || !/4060|5050/i.test(texto)) continue;
 
     const titulo =
       card.find('h1, h2, h3, a').first().text().replace(/\s+/g, ' ').trim() ||
@@ -182,35 +181,46 @@ export const promobitScraper: FonteScraper = {
   id: 'promobit',
   async coletar(): Promise<Oferta[]> {
     try {
-      const [htmlRes, jsonRes] = await Promise.allSettled([
-        http.get<string>(PROMOBIT_BUSCA_URL, {
-          headers: { ...CHROME_HEADERS, Referer: 'https://www.promobit.com.br/' },
-        }),
-        http.get<{ active_offers?: PromobitOffer[] }>(PROMOBIT_SEARCH_API, {
-          headers: {
-            Accept: 'application/json',
-            Origin: 'https://www.promobit.com.br',
-            Referer: PROMOBIT_BUSCA_URL,
-          },
-        }),
-      ]);
-
+      const todosTermos = TERMOS_BUSCA;
       const doHtml: Oferta[] = [];
-      if (htmlRes.status === 'fulfilled' && htmlRes.value.status < 400) {
-        const html = typeof htmlRes.value.data === 'string' ? htmlRes.value.data : '';
-        doHtml.push(...varrerCardsPromobit(html));
-      } else if (htmlRes.status === 'rejected') {
-        console.warn(`[Comunidade] HTML Promobit falhou: ${detalheErro(htmlRes.reason)}`);
-      }
-
       const doJson: Oferta[] = [];
-      if (jsonRes.status === 'fulfilled' && jsonRes.value.status < 400) {
-        for (const item of jsonRes.value.data.active_offers ?? []) {
-          const oferta = mapearJsonPromobit(item);
-          if (oferta) doJson.push(oferta);
+
+      for (const termo of todosTermos) {
+        const buscaUrl = `https://www.promobit.com.br/buscar?q=${encodeURIComponent(termo)}`;
+        const apiUrl = `https://api.promobit.com.br/search?q=${encodeURIComponent(termo)}`;
+
+        const [htmlRes, jsonRes] = await Promise.allSettled([
+          http.get<string>(buscaUrl, {
+            headers: { ...CHROME_HEADERS, Referer: 'https://www.promobit.com.br/' },
+            timeout: 10000,
+            signal: AbortSignal.timeout(10000),
+          }),
+          http.get<{ active_offers?: PromobitOffer[] }>(apiUrl, {
+            headers: {
+              Accept: 'application/json',
+              Origin: 'https://www.promobit.com.br',
+              Referer: buscaUrl,
+            },
+            timeout: 10000,
+            signal: AbortSignal.timeout(10000),
+          }),
+        ]);
+
+        if (htmlRes.status === 'fulfilled' && htmlRes.value.status < 400) {
+          const html = typeof htmlRes.value.data === 'string' ? htmlRes.value.data : '';
+          doHtml.push(...varrerCardsPromobit(html));
+        } else if (htmlRes.status === 'rejected') {
+          console.warn(`[Comunidade] HTML Promobit falhou para "${termo}": ${detalheErro(htmlRes.reason)}`);
         }
-      } else if (jsonRes.status === 'rejected') {
-        console.warn(`[Comunidade] JSON Promobit falhou: ${detalheErro(jsonRes.reason)}`);
+
+        if (jsonRes.status === 'fulfilled' && jsonRes.value.status < 400) {
+          for (const item of jsonRes.value.data.active_offers ?? []) {
+            const oferta = mapearJsonPromobit(item);
+            if (oferta) doJson.push(oferta);
+          }
+        } else if (jsonRes.status === 'rejected') {
+          console.warn(`[Comunidade] JSON Promobit falhou para "${termo}": ${detalheErro(jsonRes.reason)}`);
+        }
       }
 
       const unicas = new Map<string, Oferta>();

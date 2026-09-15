@@ -85,10 +85,6 @@ function montarEmbeds(ofertas: OfertaSupermercadoClassificada[]) {
   ];
 }
 
-function idDoWebhook(url: string): string {
-  return url.match(/webhooks\/(\d+)/)?.[1] ?? 'desconhecido';
-}
-
 export async function enviarPromocoesSupermercado(
   ofertas: OfertaSupermercadoClassificada[]
 ): Promise<void> {
@@ -99,7 +95,7 @@ export async function enviarPromocoesSupermercado(
     return;
   }
 
-  console.log(`[discord-supermercado] destino webhook ${idDoWebhook(webhook)}`);
+  console.log('[discord-supermercado] Enviando ofertas para o Discord...');
 
   try {
     await axios.post(webhook, {
@@ -107,15 +103,13 @@ export async function enviarPromocoesSupermercado(
       avatar_url: AVATAR_SUPERMERCADO,
       embeds: montarEmbeds(ofertas),
     });
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      console.error(
-        '[discord-supermercado] Discord recusou o payload:',
-        err.response?.status,
-        JSON.stringify(err.response?.data)
-      );
-    }
-    throw err;
+  } catch (err: any) {
+    const status = err.response?.status ?? 'Erro de rede';
+    const statusText = err.response?.statusText ?? 'Falha na comunicação';
+    console.error(
+      `[discord-supermercado] Discord recusou o payload ou conexão falhou: ${status} (${statusText}). URL omitida.`
+    );
+    throw new Error(`Falha no webhook do Discord: ${status} (${statusText})`);
   }
   console.log(
     `[discord-supermercado] ${ofertas.length} oferta(s) enviada(s) ao Discord.`

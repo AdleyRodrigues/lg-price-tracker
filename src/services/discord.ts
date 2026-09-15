@@ -50,11 +50,12 @@ export function montarPayloadDiscord(
     content: `${mencao}Pódio atualizado (Top ${lugares.length}) — menor custo total (à vista + frete).`,
     embeds: [
       {
-        title: `🏆 ${melhor.loja} — ${formatBRL(melhor.precoTotal)}`,
+        title: '💻 Monitor de Notebooks Gamer (RTX 4060 / 5050)',
         url: melhor.url,
         description:
-          `Comparativo concorrente (Top ${lugares.length}) para o CEP **${cep}**.\n` +
-          `Fontes em paralelo: Amazon, Loja Oficial LG e Comunidade (Promobit).\n\n` +
+          `Comparativo de Notebooks Gamer (Top ${lugares.length}) para o CEP **${cep}**.\n` +
+          `Melhor oferta: **${melhor.loja}** por **${formatBRL(melhor.precoTotal)}**\n` +
+          `Fontes em paralelo: Amazon e Comunidade (Promobit).\n\n` +
           `${melhor.titulo}`,
         color: corDoVencedor(melhor.loja),
         fields,
@@ -77,11 +78,19 @@ export async function enviarParaDiscord(ofertas: Oferta[]): Promise<void> {
   const medalhas = ['🥇 1º', '🥈 2º', '🥉 3º', '🎖️ 4º', '🎖️ 5º', '6º', '7º', '8º', '9º', '10º'];
   const lugares = podio(ofertas, TAMANHO_PODIO);
 
-  await axios.post(WEBHOOK_URL, payload);
-  console.log(`Notificação (Top ${lugares.length}) enviada ao Discord com sucesso.`);
+  console.log(`\n📋 [PÓDIO CONSOLIDADO TOP ${lugares.length}]`);
   lugares.forEach((o, i) => {
     console.log(
-      `  ${medalhas[i] || `${i + 1}º`} ${o.loja} — à vista ${formatBRL(o.precoAVista)} + frete ${formatBRL(o.frete)} = ${formatBRL(o.precoTotal)}${o.cupomTag ? ` [${o.cupomTag}]` : ''} | ${o.url}`
+      `  ${medalhas[i] || `${i + 1}º`} ${o.loja} — à vista ${formatBRL(o.precoAVista)} + frete ${formatBRL(o.frete)} = ${formatBRL(o.precoTotal)}${o.cupomTag ? ` [Cupom: ${o.cupomTag}]` : ''}\n     ${o.titulo}\n     Link: ${o.url}`
     );
   });
+
+  try {
+    await axios.post(WEBHOOK_URL, payload);
+    console.log(`\n✅ Notificação (Top ${lugares.length}) enviada ao Discord com sucesso.`);
+  } catch (err: any) {
+    const status = err.response?.status ?? 'Erro de rede';
+    const statusText = err.response?.statusText ?? 'Falha na comunicação';
+    console.warn(`\n⚠️ Falha ao entregar mensagem no Discord: ${status} (${statusText}). URL omitida por segurança.`);
+  }
 }

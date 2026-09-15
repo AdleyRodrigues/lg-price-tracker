@@ -11,8 +11,12 @@ export interface ResultadoVerificacao {
   freteConfirmado?: number;
 }
 
+const TIPOS_BLOQUEADOS = new Set(['image', 'media', 'font', 'stylesheet']);
+const DOMINIOS_BLOQUEADOS =
+  /google-analytics|googletagmanager|facebook|criteo|doubleclick|clarity\.ms|hotjar|adnxs|scorecardresearch|analytics|connect\.facebook/i;
+
 export async function verificarPromobit(page: Page, oferta: Oferta): Promise<ResultadoVerificacao> {
-  await page.goto(oferta.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto(oferta.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
   // 1. Checa se o botão ou badge de oferta encerrada está visível
   const encerradaVisivel = await page
@@ -74,7 +78,7 @@ export async function verificarPromobit(page: Page, oferta: Oferta): Promise<Res
 }
 
 export async function verificarAmazon(page: Page, oferta: Oferta): Promise<ResultadoVerificacao> {
-  await page.goto(oferta.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto(oferta.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
   // 1. Checa indisponibilidade
   const indisponivel = await page
@@ -114,7 +118,7 @@ export async function verificarAmazon(page: Page, oferta: Oferta): Promise<Resul
 }
 
 export async function verificarLg(page: Page, oferta: Oferta): Promise<ResultadoVerificacao> {
-  await page.goto(oferta.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto(oferta.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
   const esgotado = await page
     .locator('text=/produto indisponível|esgotado|out of stock/i')
@@ -159,13 +163,20 @@ export async function validarTopOfertasComPlaywright(
   candidatas: Oferta[],
   maxTop = 5
 ): Promise<Oferta[]> {
+  const inicio = Date.now();
   let browser: Browser | null = null;
   const ofertasValidadas: Oferta[] = [];
 
   try {
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-extensions',
+      ],
     });
 
     const context: BrowserContext = await browser.newContext({
@@ -176,7 +187,19 @@ export async function validarTopOfertasComPlaywright(
       },
     });
 
+    // Bloqueio de recursos pesados (imagens, vídeos, fontes, css) e telemetria para acelerar a carga do DOM
+    await context.route('**/*', (route) => {
+      const req = route.request();
+      const resourceType = req.resourceType();
+      const url = req.url();
+      if (TIPOS_BLOQUEADOS.has(resourceType) || DOMINIOS_BLOQUEADOS.test(url)) {
+        return route.abort();
+      }
+      return route.continue();
+    });
+
     const page = await context.newPage();
+    page.setDefaultNavigationTimeout(15000);
 
     for (const oferta of candidatas) {
       if (ofertasValidadas.length >= maxTop) break;
@@ -206,12 +229,13 @@ export async function validarTopOfertasComPlaywright(
     }
   } catch (err: any) {
     console.error(`[Playwright Frontend] Erro geral no validador Playwright: ${err.message}`);
-    // Se Playwright falhar catastroficamente (ex: ambiente sem browser), retorna as candidatas brutas
     return candidatas.slice(0, maxTop);
   } finally {
     if (browser) {
       await browser.close().catch(() => {});
     }
+    const duracaoMs = Date.now() - inicio;
+    console.log(`[Playwright Frontend] ⏱️ Tempo total gasto na validação: ${(duracaoMs / 1000).toFixed(2)}s`);
   }
 
   return ofertasValidadas;

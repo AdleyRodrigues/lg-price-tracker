@@ -15,11 +15,11 @@ describe('verificador frontend com Playwright', () => {
         locator: (seletor: string) => ({
           first: () => ({
             isVisible: async () => seletor.includes('Oferta encerrada'),
-            innerText: async () => 'R$ 1.797,80',
+            innerText: async () => 'R$ 5.100,00',
           }),
           filter: () => ({
             first: () => ({
-              innerText: async () => 'R$ 1.797,80',
+              innerText: async () => 'R$ 5.100,00',
             }),
           }),
         }),
@@ -27,10 +27,10 @@ describe('verificador frontend com Playwright', () => {
 
       const oferta: Oferta = {
         loja: 'Comunidade (Promobit)',
-        titulo: 'LG Dual Inverter Voice 9000 Só Frio',
-        precoAVista: 1797.8,
+        titulo: 'Notebook Gamer Acer Nitro V15 RTX 4060',
+        precoAVista: 5100.0,
         frete: 100,
-        precoTotal: 1897.8,
+        precoTotal: 5200.0,
         url: 'https://www.promobit.com.br/oferta/teste-123',
         fonteId: 'promobit',
       };
@@ -46,11 +46,11 @@ describe('verificador frontend com Playwright', () => {
         locator: (seletor: string) => ({
           first: () => ({
             isVisible: async () => seletor.includes('Ir para a loja'),
-            innerText: async () => 'R$ 1.850,00',
+            innerText: async () => 'R$ 5.200,00',
           }),
           filter: () => ({
             first: () => ({
-              innerText: async () => 'R$ 1.850,00',
+              innerText: async () => 'R$ 5.200,00',
             }),
           }),
         }),
@@ -58,17 +58,17 @@ describe('verificador frontend com Playwright', () => {
 
       const oferta: Oferta = {
         loja: 'Comunidade (Promobit)',
-        titulo: 'LG Dual Inverter Voice 9000 Só Frio',
-        precoAVista: 1850,
+        titulo: 'Notebook Gamer Acer Nitro V15 RTX 4060',
+        precoAVista: 5200,
         frete: 100,
-        precoTotal: 1950,
+        precoTotal: 5300,
         url: 'https://www.promobit.com.br/oferta/teste-ativa',
         fonteId: 'promobit',
       };
 
       const resultado = await verificarPromobit(mockPage, oferta);
       expect(resultado.valida).toBe(true);
-      expect(resultado.precoConfirmado).toBe(1850);
+      expect(resultado.precoConfirmado).toBe(5200);
     });
   });
 
@@ -85,12 +85,12 @@ describe('verificador frontend com Playwright', () => {
       } as any;
 
       const oferta: Oferta = {
-        loja: 'Amazon (Leveros)',
-        titulo: 'LG Dual Inverter Voice 9000',
-        precoAVista: 2072.83,
-        frete: 86.98,
-        precoTotal: 2159.81,
-        url: 'https://www.amazon.com.br/dp/B0GQJP852H',
+        loja: 'Amazon',
+        titulo: 'Notebook Gamer Acer Nitro V15 RTX 4060',
+        precoAVista: 5200.0,
+        frete: 0,
+        precoTotal: 5200.0,
+        url: 'https://www.amazon.com.br/dp/B0FY41RGG9',
         fonteId: 'amazon',
       };
 
@@ -105,24 +105,24 @@ describe('verificador frontend com Playwright', () => {
         locator: (seletor: string) => ({
           first: () => ({
             isVisible: async () => false,
-            innerText: async () => 'R$ 2.072,83',
+            innerText: async () => 'R$ 5.299,00',
           }),
         }),
       } as any;
 
       const oferta: Oferta = {
-        loja: 'Amazon (FRIOPECAS)',
-        titulo: 'LG Dual Inverter Voice 9000',
-        precoAVista: 2139.0,
-        frete: 86.98,
-        precoTotal: 2225.98,
-        url: 'https://www.amazon.com.br/dp/B0GQJP852H',
+        loja: 'Amazon',
+        titulo: 'Notebook Gamer Acer Nitro V15 RTX 4060',
+        precoAVista: 5499.0,
+        frete: 0,
+        precoTotal: 5499.0,
+        url: 'https://www.amazon.com.br/dp/B0FY41RGG9',
         fonteId: 'amazon',
       };
 
       const resultado = await verificarAmazon(mockPage, oferta);
       expect(resultado.valida).toBe(true);
-      expect(resultado.precoConfirmado).toBe(2072.83);
+      expect(resultado.precoConfirmado).toBe(5299.0);
     });
   });
 
@@ -139,11 +139,11 @@ describe('verificador frontend com Playwright', () => {
 
       const oferta: Oferta = {
         loja: 'Loja Oficial LG',
-        titulo: 'LG Dual Inverter Voice 9000',
-        precoAVista: 2114.5,
-        frete: 352.8,
-        precoTotal: 2467.3,
-        url: 'https://www.lg.com/br/ar-condicionado-residencial/dual-inverter-split/s3-q09aa33f/',
+        titulo: 'Notebook Gamer LG Gram RTX 4060',
+        precoAVista: 6000.0,
+        frete: 0,
+        precoTotal: 6000.0,
+        url: 'https://www.lg.com/br/notebooks/rtx4060/',
         fonteId: 'lg',
       };
 

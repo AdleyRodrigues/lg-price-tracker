@@ -1,9 +1,9 @@
 import {
-  EXIGE_9000_BTU,
   OFERTA_ENCERRADA,
   PRECO_MINIMO,
   TITULO_BLOQUEADO,
-  VALIDA_DUAL_INVERTER,
+  VALIDA_GPU,
+  VALIDA_NOTEBOOK,
 } from '../config/regras';
 import { Oferta } from '../types/oferta';
 
@@ -11,14 +11,14 @@ export function tituloBloqueado(titulo: string, sku?: string): boolean {
   if (!titulo) return true;
   const textoCompleto = `${titulo} ${sku ?? ''}`;
 
-  // 1. Bloqueios explícitos (Smart Inverter, 127V, peças avulsas, outras capacidades, ciclo quente)
+  // 1. Bloqueios explícitos (desktop, pc gamer, placa de video, gpu, mesa, suporte, cooler, gabinete, fonte, monitor, teclado, usado)
   if (TITULO_BLOQUEADO.test(textoCompleto)) return true;
 
-  // 2. Exige que a capacidade seja 9.000 BTU / Q09 / 9k
-  if (!EXIGE_9000_BTU.test(textoCompleto)) return true;
+  // 2. Exige obrigatoriamente que seja notebook ou laptop
+  if (!VALIDA_NOTEBOOK.test(textoCompleto)) return true;
 
-  // 3. Valida se é Dual Inverter (termo Dual Inverter/Voice ou taxonomia oficial S3-Q09AA)
-  if (!VALIDA_DUAL_INVERTER.test(textoCompleto)) return true;
+  // 3. Exige obrigatoriamente que contenha GPU 4060 ou 5050
+  if (!VALIDA_GPU.test(textoCompleto)) return true;
 
   return false;
 }
@@ -33,7 +33,7 @@ export function ofertaEncerrada(status: string): boolean {
 
 export function ofertaBrutaValida(titulo: string, preco: number, status = '', sku?: string): boolean {
   if (tituloBloqueado(titulo, sku)) {
-    console.log(`[filtro] descartado pela validação de modelo/SKU: "${titulo}" (${sku ?? 'sem sku'})`);
+    console.log(`[filtro] descartado pela validação de modelo/hardware: "${titulo}" (${sku ?? 'sem sku'})`);
     return false;
   }
   if (precoAbaixoDoPiso(preco)) return false;

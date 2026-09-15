@@ -1,13 +1,18 @@
-name: Monitor de preços
+name: Monitor - Notebooks Gamer (RTX 4060 / 5050)
 
 on:
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   track:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,5 +29,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Playwright Binaries
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Run price tracker
         run: pnpm exec ts-node src/tracker.ts
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          USER_ID: ${{ secrets.USER_ID }}

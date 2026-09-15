@@ -4,18 +4,19 @@ import { ItemCatalogo } from '../src/config/catalogo';
 import {
   freteFallbackAmazon,
   parsearAmazon,
+  parsearBuscaAmazon,
   primeiroTexto,
   vendedorAmazon,
 } from '../src/scrapers/amazon';
 
 describe('amazon scraper', () => {
   const itemExemplo: ItemCatalogo = {
-    loja: 'Amazon (Leveros)',
-    produto: 'LG Dual Inverter Voice 9000 Só Frio S3-Q09AA31F',
-    sku: 'S3-Q09AA31F',
-    url: 'https://www.amazon.com.br/dp/B0GQJP852H',
+    loja: 'Amazon',
+    produto: 'Notebook Gamer Acer Nitro V15 RTX 4060',
+    sku: 'B0FY41RGG9',
+    url: 'https://www.amazon.com.br/dp/B0FY41RGG9',
     parser: 'amazon',
-    freteFallback: 86.98,
+    freteFallback: 0,
   };
 
   describe('vendedorAmazon', () => {
@@ -31,8 +32,8 @@ describe('amazon scraper', () => {
       expect(freteFallbackAmazon(itemExemplo, 'Leveros')).toBe(86.98);
     });
 
-    it('retorna fallback específico de Webcontinental (205)', () => {
-      expect(freteFallbackAmazon(itemExemplo, 'Webcontinental')).toBe(205);
+    it('retorna fallback padrão quando não há seller de frete customizado', () => {
+      expect(freteFallbackAmazon(itemExemplo, 'Amazon')).toBe(0);
     });
   });
 
@@ -42,30 +43,9 @@ describe('amazon scraper', () => {
         <html>
           <body>
             <div id="corePrice_feature_div">
-              <span class="a-offscreen">R$ 2.072,83</span>
+              <span class="a-offscreen">R$ 5.499,00</span>
             </div>
-            <div id="merchant-info">Vendido por Leveros</div>
-            <div id="deliveryBlockMessage">
-              <span>Entrega R$ 86,98 21 - 25 de Setembro.</span>
-            </div>
-          </body>
-        </html>
-      `;
-      const bruta = parsearAmazon(html, itemExemplo);
-      expect(bruta.precoAVista).toBe(2072.83);
-      expect(bruta.frete).toBe(86.98);
-      expect(bruta.loja).toBe('Amazon (Leveros)');
-      expect(bruta.fonteId).toBe('amazon');
-    });
-
-    it('aplica fallback de frete quando o HTML diz entrega grátis mas o vendedor é 3P (Leveros)', () => {
-      const html = `
-        <html>
-          <body>
-            <div class="priceToPay">
-              <span class="a-offscreen">R$ 2.072,83</span>
-            </div>
-            <div id="merchant-info">Vendido por Leveros</div>
+            <div id="merchant-info">Vendido por Amazon.com.br</div>
             <div id="deliveryBlockMessage">
               <span>Entrega GRÁTIS</span>
             </div>
@@ -73,38 +53,39 @@ describe('amazon scraper', () => {
         </html>
       `;
       const bruta = parsearAmazon(html, itemExemplo);
-      expect(bruta.precoAVista).toBe(2072.83);
-      expect(bruta.frete).toBe(86.98);
+      expect(bruta.precoAVista).toBe(5499.0);
+      expect(bruta.frete).toBe(0);
+      expect(bruta.loja).toBe('Amazon');
+      expect(bruta.fonteId).toBe('amazon');
     });
 
-    it('ignora preços de carrosséis/outras ofertas (R$ 2.139,00) e extrai o preço real do buybox (R$ 2.072,83)', () => {
+    it('ignora preços de carrosséis/outras ofertas e extrai o preço real do buybox', () => {
       const html = `
         <html>
           <body>
             <div id="p13n-desktop-sims-fbt">
-              <span class="a-price"><span class="a-offscreen">R$ 2.139,00</span></span>
+              <span class="a-price"><span class="a-offscreen">R$ 6.139,00</span></span>
             </div>
             <div id="aod-ingress-link">
-              <span class="a-price"><span class="a-offscreen">R$ 2.139,00</span></span>
+              <span class="a-price"><span class="a-offscreen">R$ 6.139,00</span></span>
             </div>
             <div id="centerCol">
               <div id="corePrice_feature_div">
                 <span class="a-price aok-align-center apex-pricetopay-value">
-                  <span class="a-offscreen">R$ 2.072,83</span>
+                  <span class="a-offscreen">R$ 5.200,00</span>
                 </span>
               </div>
             </div>
-            <div id="sellerProfileTriggerId">FRIOPECAS</div>
+            <div id="sellerProfileTriggerId">Amazon</div>
             <div id="deliveryBlockMessage">
-              <span>Entrega R$ 86,98 21 - 25 de Setembro</span>
+              <span>Entrega GRÁTIS</span>
             </div>
           </body>
         </html>
       `;
       const bruta = parsearAmazon(html, itemExemplo);
-      expect(bruta.precoAVista).toBe(2072.83);
-      expect(bruta.frete).toBe(86.98);
-      expect(bruta.loja).toBe('Amazon (FRIOPECAS)');
+      expect(bruta.precoAVista).toBe(5200.0);
+      expect(bruta.frete).toBe(0);
     });
 
     it('calcula desconto Pix quando apenas o total parcelado está no seletor e o buybox indica 10% off', () => {
@@ -113,19 +94,19 @@ describe('amazon scraper', () => {
           <body>
             <div id="centerCol">
               <div id="corePrice_feature_div">
-                <span class="a-offscreen">R$ 2.303,15</span>
+                <span class="a-offscreen">R$ 6.000,00</span>
               </div>
               <div id="apex_desktop">
                 <span>10% off à vista no Pix ou NuPay</span>
-                <span>ou em até 12x de R$ 192,03 sem juros (total parcelado R$ 2.303,15)</span>
+                <span>ou em até 12x de R$ 500,00 sem juros (total parcelado R$ 6.000,00)</span>
               </div>
             </div>
-            <div id="merchant-info">Vendido por Leveros</div>
+            <div id="merchant-info">Vendido por Amazon.com.br</div>
           </body>
         </html>
       `;
       const bruta = parsearAmazon(html, itemExemplo);
-      expect(bruta.precoAVista).toBe(2072.84);
+      expect(bruta.precoAVista).toBe(5400.0);
     });
 
     it('lança erro quando detecta captcha da Amazon', () => {
@@ -138,5 +119,48 @@ describe('amazon scraper', () => {
       expect(() => parsearAmazon(html, itemExemplo)).toThrow(/seletor de preço não encontrado/);
     });
   });
-});
 
+  describe('parsearBuscaAmazon', () => {
+    it('extrai múltiplos resultados válidos de notebook gamer da página de busca', () => {
+      const html = `
+        <html>
+          <body>
+            <div data-component-type="s-search-result" data-asin="B0FY41RGG9">
+              <h2>
+                <a href="/dp/B0FY41RGG9">
+                  <span>Notebook Gamer Acer Nitro V15 RTX 4060 16GB RAM</span>
+                </a>
+              </h2>
+              <div class="a-price">
+                <span class="a-offscreen">R$ 5.299,00</span>
+              </div>
+              <span aria-label="Entrega GRÁTIS">Entrega GRÁTIS</span>
+            </div>
+            <div data-component-type="s-search-result" data-asin="B0DESKTOP1">
+              <h2>
+                <a href="/dp/B0DESKTOP1">
+                  <span>Desktop Gamer Intel i7 RTX 4060</span>
+                </a>
+              </h2>
+              <div class="a-price">
+                <span class="a-offscreen">R$ 4.999,00</span>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+      const itemBusca: ItemCatalogo = {
+        loja: 'Amazon (Busca RTX 4060)',
+        produto: 'Notebook Gamer RTX 4060',
+        url: 'https://www.amazon.com.br/s?k=notebook+rtx+4060',
+        parser: 'amazon',
+      };
+      const ofertas = parsearBuscaAmazon(html, itemBusca);
+      expect(ofertas).toHaveLength(1);
+      expect(ofertas[0].titulo).toContain('Acer Nitro V15 RTX 4060');
+      expect(ofertas[0].precoAVista).toBe(5299.0);
+      expect(ofertas[0].url).toBe('https://www.amazon.com.br/dp/B0FY41RGG9');
+      expect(ofertas[0].frete).toBe(0);
+    });
+  });
+});

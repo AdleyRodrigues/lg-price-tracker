@@ -6,86 +6,61 @@ import {
   precoAbaixoDoPiso,
   tituloBloqueado,
 } from '../src/domain/filtros';
-import { Oferta } from '../types/oferta';
+import { Oferta } from '../src/types/oferta';
 
 describe('filtros domain', () => {
   describe('tituloBloqueado', () => {
-    it('bloqueia modelos Smart Inverter (rotor simples: S3-Q09JA, JA31, JA33)', () => {
-      expect(
-        tituloBloqueado('Ar Condicionado Split LG AI Smart Inverter Voice 9000 BTUs Frio 220V S3-Q09JA31E')
-      ).toBe(true);
-      expect(
-        tituloBloqueado('Ar Condicionado LG Smart Inverter 9000 Frio 220V')
-      ).toBe(true);
-      expect(
-        tituloBloqueado('LG Voice 9000 Só Frio', 'S3-Q09JA31E')
-      ).toBe(true);
+    it('bloqueia desktops, pc gamer, placas de vídeo avulsas e GPUs', () => {
+      expect(tituloBloqueado('PC Gamer Desktop Intel Core i5 16GB RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Desktop Gamer Lenovo RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Placa de Vídeo RTX 4060 8GB GDDR6')).toBe(true);
+      expect(tituloBloqueado('GPU Gigabyte GeForce RTX 4060 Eagle')).toBe(true);
     });
 
-    it('bloqueia modelos de 127V ou 110V', () => {
-      expect(
-        tituloBloqueado('Ar-Condicionado Split HW LG Dual Inverter +AI Voice 9.000 BTUs R-32 Só Frio 127V')
-      ).toBe(true);
-      expect(
-        tituloBloqueado('LG Dual Inverter 9000 110V')
-      ).toBe(true);
+    it('bloqueia periféricos e acessórios (mesa, suporte, cooler, gabinete, fonte, monitor, teclado)', () => {
+      expect(tituloBloqueado('Mesa Gamer para Notebook RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Suporte Articulado para Notebook RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Cooler para Notebook Gamer RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Gabinete Gamer com Suporte para Laptop RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Fonte Carregador para Notebook Dell RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Monitor Gamer 144Hz para Notebook RTX 4060')).toBe(true);
+      expect(tituloBloqueado('Teclado Mecânico RGB para Notebook RTX 4060')).toBe(true);
     });
 
-    it('bloqueia peças avulsas (evaporadora S4NQ, condensadora S4UQ)', () => {
-      expect(tituloBloqueado('Condensadora LG Dual Inverter 9000')).toBe(true);
-      expect(tituloBloqueado('Evaporadora LG Voice 9000')).toBe(true);
-      expect(tituloBloqueado('Unidade Externa S4UQ09AA31C')).toBe(true);
-      expect(tituloBloqueado('Unidade Interna S4NQ09AA31C')).toBe(true);
-      expect(tituloBloqueado('LG Dual Inverter 9000', 'S4UQ09AA31C')).toBe(true);
+    it('bloqueia produtos usados', () => {
+      expect(tituloBloqueado('Notebook Gamer Acer Nitro 5 RTX 4060 Usado')).toBe(true);
     });
 
-    it('bloqueia modelos de outras capacidades (12k, 18k, 24k)', () => {
-      expect(
-        tituloBloqueado('Ar Condicionado LG Dual Inverter Voice 12000 BTU Frio')
-      ).toBe(true);
-      expect(
-        tituloBloqueado('Ar Condicionado LG Dual Voice 18.000 Btus')
-      ).toBe(true);
-      expect(
-        tituloBloqueado('Ar Condicionado LG Dual Voice 24.000 Btus')
-      ).toBe(true);
+    it('bloqueia itens sem menção a notebook ou laptop', () => {
+      expect(tituloBloqueado('Acer Nitro V15 RTX 4060 16GB SSD 512GB')).toBe(true);
     });
 
-    it('bloqueia modelos Quente e Frio (S3-W)', () => {
+    it('bloqueia notebooks com outras GPUs (ex: 3050, 4050, 4070)', () => {
+      expect(tituloBloqueado('Notebook Gamer Acer Nitro V15 RTX 3050')).toBe(true);
+      expect(tituloBloqueado('Notebook Gamer Acer Nitro V15 RTX 4050')).toBe(true);
+      expect(tituloBloqueado('Laptop Gamer ASUS ROG RTX 4070')).toBe(true);
+    });
+
+    it('aceita notebooks e laptops legítimos com RTX 4060 ou RTX 5050', () => {
       expect(
         tituloBloqueado(
-          'Ar Condicionado Hi Wall LG Dual Inverter Voice AI 9.000 Btus Quente e Frio 220v'
-        )
-      ).toBe(true);
-      expect(
-        tituloBloqueado('LG Dual Inverter 9000', 'S3-W09AA31A')
-      ).toBe(true);
-    });
-
-    it('rejeita modelos sem menção a Dual Inverter ou sem SKU compatível', () => {
-      expect(
-        tituloBloqueado('Ar Condicionado Split 9000 BTU Frio 220V')
-      ).toBe(true);
-    });
-
-    it('aceita modelos legítimos de 9.000 BTU Só Frio 220V Dual Inverter', () => {
-      expect(
-        tituloBloqueado(
-          'Ar-Condicionado LG Dual Inverter AI Voice 9.000 BTU Frio 220V'
+          'Notebook Gamer Acer Nitro V15 ANV15-52-52VN Intel Core i5 16GB 512GB SSD RTX 4060'
         )
       ).toBe(false);
       expect(
         tituloBloqueado(
-          'LG Ar Condicionado Split LG Dual Inverter AI Voice 9000 BTU/h Frio S3-Q09AA31F - 220 Volts'
+          'Laptop Dell G15 5530 Intel Core i7 16GB 512GB SSD RTX 4060 15.6 FHD 165Hz'
         )
       ).toBe(false);
       expect(
         tituloBloqueado(
-          'Ar Condicionado LG AI Dual Inverter Voice 9.000 BTUS Frio 220V S3-Q09AA31C'
+          'Notebook Lenovo Gamer LOQ Essential Intel Core i7 16GB 512GB SSD RTX 5050 15.6"'
         )
       ).toBe(false);
       expect(
-        tituloBloqueado('LG Dual Inverter Voice 9000 Só Frio S3-Q09AA33F', 'S3-Q09AA33F')
+        tituloBloqueado(
+          'Laptop ASUS Gamer V16 V3607VH RTX 5050 Core 5 16GB RAM 512GB SSD'
+        )
       ).toBe(false);
     });
 
@@ -95,8 +70,9 @@ describe('filtros domain', () => {
   });
 
   describe('precoAbaixoDoPiso', () => {
-    it('bloqueia preços menores que 1500 (preço mínimo)', () => {
-      expect(precoAbaixoDoPiso(1499.99)).toBe(true);
+    it('bloqueia preços menores que 3800 (piso mínimo para notebooks gamer)', () => {
+      expect(precoAbaixoDoPiso(3799.99)).toBe(true);
+      expect(precoAbaixoDoPiso(2500)).toBe(true);
       expect(precoAbaixoDoPiso(800)).toBe(true);
       expect(precoAbaixoDoPiso(0)).toBe(true);
       expect(precoAbaixoDoPiso(-50)).toBe(true);
@@ -107,10 +83,10 @@ describe('filtros domain', () => {
       expect(precoAbaixoDoPiso(Number.POSITIVE_INFINITY)).toBe(true);
     });
 
-    it('aceita preços iguais ou superiores a 1500', () => {
-      expect(precoAbaixoDoPiso(1500)).toBe(false);
-      expect(precoAbaixoDoPiso(2072.83)).toBe(false);
-      expect(precoAbaixoDoPiso(2114.5)).toBe(false);
+    it('aceita preços iguais ou superiores a 3800', () => {
+      expect(precoAbaixoDoPiso(3800)).toBe(false);
+      expect(precoAbaixoDoPiso(4899.9)).toBe(false);
+      expect(precoAbaixoDoPiso(6137.0)).toBe(false);
     });
   });
 
@@ -134,11 +110,11 @@ describe('filtros domain', () => {
   });
 
   describe('ofertaBrutaValida', () => {
-    it('valida oferta correta', () => {
+    it('valida oferta correta de notebook gamer', () => {
       expect(
         ofertaBrutaValida(
-          'LG Dual Inverter Voice 9000 Só Frio S3-Q09AA31F',
-          2072.83,
+          'Notebook Gamer Acer Nitro V15 RTX 4060 16GB SSD 512GB',
+          5499.0,
           'APPROVED'
         )
       ).toBe(true);
@@ -147,8 +123,8 @@ describe('filtros domain', () => {
     it('rejeita se título for bloqueado', () => {
       expect(
         ofertaBrutaValida(
-          'LG Dual Inverter 12000 BTU',
-          2072.83,
+          'Placa de Vídeo RTX 4060 8GB GDDR6',
+          4200.0,
           'APPROVED'
         )
       ).toBe(false);
@@ -157,8 +133,8 @@ describe('filtros domain', () => {
     it('rejeita se preço estiver abaixo do piso', () => {
       expect(
         ofertaBrutaValida(
-          'LG Dual Inverter Voice 9000 Só Frio',
-          450.0,
+          'Notebook Gamer Acer Nitro RTX 4060',
+          1800.0,
           'APPROVED'
         )
       ).toBe(false);
@@ -167,8 +143,8 @@ describe('filtros domain', () => {
     it('rejeita se status indicar encerrada', () => {
       expect(
         ofertaBrutaValida(
-          'LG Dual Inverter Voice 9000 Só Frio',
-          1800.0,
+          'Notebook Gamer Lenovo LOQ RTX 4060',
+          4999.0,
           'Oferta encerrada'
         )
       ).toBe(false);
@@ -178,12 +154,12 @@ describe('filtros domain', () => {
   describe('aceitarOferta', () => {
     it('aceita oferta completa e válida', () => {
       const oferta: Oferta = {
-        loja: 'Amazon (Leveros)',
-        titulo: 'LG Dual Inverter Voice 9000 Só Frio S3-Q09AA31F',
-        precoAVista: 2072.83,
-        frete: 86.98,
-        precoTotal: 2159.81,
-        url: 'https://www.amazon.com.br/dp/B0GQJP852H',
+        loja: 'Amazon',
+        titulo: 'Notebook Gamer Acer Nitro V15 ANV15-52-52VN RTX 4060',
+        precoAVista: 5200.0,
+        frete: 0,
+        precoTotal: 5200.0,
+        url: 'https://www.amazon.com.br/dp/B0FY41RGG9',
       };
       expect(aceitarOferta(oferta)).toBe(true);
     });
@@ -191,10 +167,10 @@ describe('filtros domain', () => {
     it('rejeita oferta com frete negativo ou inválido', () => {
       const ofertaInvalida: Oferta = {
         loja: 'Amazon',
-        titulo: 'LG Dual Inverter Voice 9000 Só Frio',
-        precoAVista: 2072.83,
+        titulo: 'Notebook Gamer Acer Nitro RTX 4060',
+        precoAVista: 5200.0,
         frete: -10,
-        precoTotal: 2062.83,
+        precoTotal: 5190.0,
         url: 'https://example.com',
       };
       expect(aceitarOferta(ofertaInvalida)).toBe(false);
