@@ -57,6 +57,8 @@ export async function consultarGraphqlLg(sku: string): Promise<LgGraphqlProduto 
         Origin: 'https://www.lg.com',
         Referer: 'https://www.lg.com/br/',
       },
+      timeout: 10000,
+      signal: AbortSignal.timeout(10000),
     }
   );
 
@@ -148,7 +150,7 @@ export async function parsearLg(html: string, item: ItemCatalogo): Promise<Ofert
     console.log(`[${item.loja}] frete bruto extraído: "${blocoFrete}" => ${formatBRL(frete)}`);
   } else {
     console.log(
-      `[${item.loja}] frete não localizado no HTML estático da loja oficial. Usando frete padrão Fortaleza: ${formatBRL(fallbackFrete)}.`
+      `[${item.loja}] frete não localizado no HTML estático da loja oficial. Usando frete padrão regional: ${formatBRL(fallbackFrete)}.`
     );
   }
 

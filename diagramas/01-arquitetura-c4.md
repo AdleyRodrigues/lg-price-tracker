@@ -7,7 +7,7 @@ Rastreador de SKUs LG 9000 BTU. O usuário é o bonequinho C4 (`Person`) no topo
 C4Container
 title LG Price Tracker — C4 Container (SKU 9000 BTU)
 
-Person(user, "Usuário", "Vê o pódio no Discord (CEP 60440-240).")
+Person(user, "Usuário", "Vê o pódio no Discord (CEP regional configurado).")
 
 System_Boundary(gh, "GitHub Actions") {
     Container(cron, "Scheduler", "cron a cada 4h + dispatch", "Sobe o job sem UI.")

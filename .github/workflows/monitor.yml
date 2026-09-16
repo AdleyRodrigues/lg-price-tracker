@@ -45,3 +45,4 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           USER_ID: ${{ secrets.USER_ID }}
+          CEP_DESTINO: ${{ secrets.CEP_DESTINO || vars.CEP_DESTINO }}

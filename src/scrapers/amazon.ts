@@ -165,19 +165,19 @@ export function parsearAmazon(html: string, item: ItemCatalogo): OfertaBruta {
       if (sellerTerceiro) {
         frete = fallbackFrete;
         console.warn(
-          `[${item.loja}] HTML diz entrega grátis, mas o seller é 3P. Frete Fortaleza: ${formatBRL(fallbackFrete)}.`
+          `[${item.loja}] HTML diz entrega grátis, mas o seller é 3P. Frete regional: ${formatBRL(fallbackFrete)}.`
         );
       } else {
         frete = 0;
       }
     } else {
       console.warn(
-        `[${item.loja}] bloco de entrega sem valor explícito. Fallback Fortaleza: ${formatBRL(fallbackFrete)}.`
+        `[${item.loja}] bloco de entrega sem valor explícito. Fallback regional: ${formatBRL(fallbackFrete)}.`
       );
     }
   } else {
     console.warn(
-      `[${item.loja}] frete regional não veio no HTML. Fallback Fortaleza: ${formatBRL(fallbackFrete)}.`
+      `[${item.loja}] frete regional não veio no HTML. Fallback regional: ${formatBRL(fallbackFrete)}.`
     );
   }
 
@@ -270,7 +270,10 @@ export function parsearBuscaAmazon(html: string, item: ItemCatalogo): Oferta[] {
 let cachedAmazonCookies: string | null = null;
 let lastCookieTime = 0;
 
-export async function obterCookiesAmazonCep(cep = '60440240', forceFresh = false): Promise<string> {
+export async function obterCookiesAmazonCep(
+  cep = process.env.CEP_DESTINO?.replace(/\D/g, '') || '01001000',
+  forceFresh = false
+): Promise<string> {
   const agora = Date.now();
   if (!forceFresh && cachedAmazonCookies && agora - lastCookieTime < 15 * 60 * 1000) {
     return cachedAmazonCookies;
@@ -339,7 +342,7 @@ export async function obterCookiesAmazonCep(cep = '60440240', forceFresh = false
 async function rasparItem(item: ItemCatalogo): Promise<Oferta[]> {
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     try {
-      const cookie = await obterCookiesAmazonCep(CEP, tentativa > 1);
+      const cookie = await obterCookiesAmazonCep(CEP.replace(/\D/g, ''), tentativa > 1);
       const html = await baixarHtml(item.url, {
         Referer: 'https://www.amazon.com.br/',
         Cookie: cookie,

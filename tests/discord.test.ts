@@ -75,15 +75,15 @@ describe('discord service', () => {
 
   describe('montarPayloadDiscord', () => {
     it('cria estrutura com título "💻 Monitor de Notebooks Gamer (RTX 4060 / 5050)"', () => {
-      const payload = montarPayloadDiscord(ofertas, '123456789', '60440-240');
+      const payload = montarPayloadDiscord(ofertas, '123456789', '01001-000');
       expect(payload).not.toBeNull();
       expect(payload?.content).not.toContain('<@123456789>');
       expect(payload?.content).toContain('Pódio atualizado (Top 3)');
       expect(payload?.embeds[0].title).toBe('💻 Monitor de Notebooks Gamer (RTX 4060 / 5050)');
-      expect(payload?.embeds[0].description).toContain('60440-240');
+      expect(payload?.embeds[0].description).toContain('01001-000');
       expect(payload?.embeds[0].fields).toHaveLength(3);
       expect(payload?.embeds[0].fields[0].name).toBe('🥇 1º — Amazon');
-      expect(payload?.embeds[0].footer.text).toContain('60440-240');
+      expect(payload?.embeds[0].footer.text).toContain('01001-000');
     });
 
     it('dispara menção com ping sonoro quando o menor preço rompe o piso de alerta crítico', () => {
@@ -95,7 +95,7 @@ describe('discord service', () => {
         precoTotal: 4200.0,
         url: 'https://www.amazon.com.br/dp/B0FY41RGG9',
       };
-      const payload = montarPayloadDiscord([superOferta, ...ofertas], '123456789', '60440-240');
+      const payload = montarPayloadDiscord([superOferta, ...ofertas], '123456789', '01001-000');
       expect(payload).not.toBeNull();
       expect(payload?.content).toContain('<@123456789>');
       expect(payload?.content).toContain('OPORTUNIDADE ABAIXO DE');

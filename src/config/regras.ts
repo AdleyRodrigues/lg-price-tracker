@@ -1,4 +1,4 @@
-export const CEP = '60440-240';
+export const CEP = process.env.CEP_DESTINO || '01001-000';
 
 export const TERMOS_BUSCA = ['notebook rtx 4060', 'notebook rtx 5050'];
 

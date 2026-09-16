@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const WEBHOOK_FALLBACK = 'https://discord.com/api/webhooks/URL_DO_WEBHOOK_AQUI';
-const USER_ID_FALLBACK = '396823106360049664';
+const WEBHOOK_FALLBACK = 'https://discord.com/api/webhooks/SEU_WEBHOOK_AQUI';
+const USER_ID_FALLBACK = '123456789012345678';
 
 function lerEnv(chave: string, fallback: string): string {
   const valor = process.env[chave]?.trim();

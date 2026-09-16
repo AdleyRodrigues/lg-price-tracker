@@ -1,6 +1,6 @@
 # Sequência — frete e variação de SKU
 
-Ciclo automatizado: filtro de SKU, custo total com CEP **60440-240** e pódio no Discord.
+Ciclo automatizado: filtro de SKU, custo total com CEP regional configurado e pódio no Discord.
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"darkMode": false, "background": "#ffffff", "primaryColor": "#dbeafe", "primaryTextColor": "#111827", "primaryBorderColor": "#1d4ed8", "lineColor": "#1f2937", "secondaryColor": "#fef3c7", "tertiaryColor": "#ffffff", "noteBkgColor": "#fef9c3", "noteTextColor": "#111827", "noteBorderColor": "#ca8a04", "actorBkg": "#dcfce7", "actorBorder": "#15803d", "actorTextColor": "#111827", "signalColor": "#111827", "signalTextColor": "#111827", "labelBoxBkgColor": "#ffffff", "labelTextColor": "#111827", "loopTextColor": "#111827", "activationBkgColor": "#bfdbfe", "sequenceNumberColor": "#ffffff", "fontFamily": "Segoe UI, sans-serif"}}}%%
@@ -13,7 +13,7 @@ sequenceDiagram
     participant LG as LG GraphQL
     participant Pb as Promobit API/HTML
     participant Filtro as Filtro / Validador
-    participant Frete as Calculadora de frete<br/>CEP 60440-240
+    participant Frete as Calculadora de frete<br/>CEP regional
     participant Rank as Normalizer / Sorter
     participant DC as Discord Webhook
 
@@ -37,7 +37,7 @@ sequenceDiagram
     Filtro-->>Col: apenas SKUs monitorados
 
     Note over Frete: Falso positivo de frete: preço da vitrine não é o custo na porta.
-    Col->>Frete: injeta CEP 60440-240
+    Col->>Frete: injeta CEP configurado
     Frete->>Frete: Amazon: parseia bloco de entrega<br/>Entrega GRÁTIS então frete 0
     Frete->>Frete: senão valor R$ no bloco
     Frete->>Frete: fallback por seller<br/>Leveros R$ 129,99 / WebContinental R$ 205
